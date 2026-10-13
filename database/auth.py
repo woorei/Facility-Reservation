@@ -1,7 +1,5 @@
 from .core import get_connection
 
-# Authentication
-
 def authenticate_teacher(teacher_id, password):
     conn = get_connection()
     row = conn.execute(

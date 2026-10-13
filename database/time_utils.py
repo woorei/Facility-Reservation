@@ -1,8 +1,6 @@
 from datetime import datetime, timedelta
 from .config import OPEN_HOUR, CLOSE_HOUR, SLOT_MINUTES
 
-# Time helpers ==================================================================
-
 def generate_time_points():
     """Every selectable clock time from OPEN_HOUR to CLOSE_HOUR inclusive,
     in 30-minute steps: ['06:00', '06:30', ... '18:00'].
