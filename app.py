@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 
 import database as db
+from ui.admin_dashboard import AdminDashboard
 from ui.dashboard import TeacherDashboard
 from ui.login import LoginFrame
 from ui.theme import ThemeManager
@@ -20,10 +21,12 @@ class ReservationApp(tk.Tk):
         db.seed_data()
 
         self.current_teacher = None
+        self.current_admin = None
         self.login_form_values = {
             "teacher_id": "",
             "password": "",
             "show_password": False,
+            "role": "Staff",
         }
         self.container = tk.Frame(self, bg=self.theme_manager.colors["bg"])
         self.container.pack(fill="both", expand=True)
@@ -46,27 +49,45 @@ class ReservationApp(tk.Tk):
     def toggle_theme(self):
         self.theme_manager.toggle()
         self.apply_theme()
-        if self.current_teacher:
+        if self.current_admin:
+            self.show_admin_dashboard(self.current_admin)
+        elif self.current_teacher:
             self.show_dashboard(self.current_teacher)
         else:
             self.show_login()
 
     def show_login(self):
         self.current_teacher = None
+        self.current_admin = None
         self.apply_theme()
         self.clear_screen()
         LoginFrame(self.container, self).pack(fill="both", expand=True)
 
     def show_dashboard(self, teacher):
         self.current_teacher = teacher
+        self.current_admin = None
         self.login_form_values = {
             "teacher_id": "",
             "password": "",
             "show_password": False,
+            "role": "Staff",
         }
         self.apply_theme()
         self.clear_screen()
         TeacherDashboard(self.container, self, teacher).pack(fill="both", expand=True)
+
+    def show_admin_dashboard(self, administrator):
+        self.current_admin = administrator
+        self.current_teacher = None
+        self.login_form_values = {
+            "teacher_id": "",
+            "password": "",
+            "show_password": False,
+            "role": "Administrator",
+        }
+        self.apply_theme()
+        self.clear_screen()
+        AdminDashboard(self.container, self, administrator).pack(fill="both", expand=True)
 
 
 if __name__ == "__main__":

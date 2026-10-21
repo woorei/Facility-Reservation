@@ -58,6 +58,7 @@ THEMES = {
 
 
 class ThemeManager:
+    """Loads, stores, and applies the active application theme."""
 
     def __init__(self, settings_path: Path | None = None):
         self.settings_path = settings_path or SETTINGS_PATH

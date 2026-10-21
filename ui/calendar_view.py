@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
+import calendar as pycalendar
 import tkinter as tk
 from tkinter import ttk, messagebox
 
@@ -49,7 +50,12 @@ class CalendarView(tk.Frame):
             toolbar, text="Next week ›", command=self.next_week,
             bg=c["panel"], fg=c["text"], activebackground=c["muted_panel"],
             activeforeground=c["text"], relief="flat", padx=10, pady=6,
-        ).pack(side="left", padx=(6, 12))
+        ).pack(side="left", padx=(6, 6))
+        tk.Button(
+            toolbar, text="Choose date…", command=self.open_date_picker,
+            bg=c["accent"], fg="#ffffff", activebackground=c["header"],
+            activeforeground="#ffffff", relief="flat", padx=10, pady=6,
+        ).pack(side="left", padx=(0, 12))
 
         self.range_label = tk.Label(
             toolbar, text="", font=FONT_HEADER, bg=c["bg"], fg=c["text"]
@@ -111,6 +117,89 @@ class CalendarView(tk.Frame):
         today = date.today()
         self.week_start = today - timedelta(days=today.weekday())
         self.refresh()
+
+    def open_date_picker(self):
+        c = self.colors
+        popup = tk.Toplevel(self)
+        popup.title("Choose a date")
+        popup.transient(self.winfo_toplevel())
+        popup.configure(bg=c["panel"])
+        popup.resizable(False, False)
+
+        current = [date(self.week_start.year, self.week_start.month, 1)]
+        tk.Label(
+            popup, text="Choose any date to view its week", font=FONT_NORMAL,
+            bg=c["panel"], fg=c["text"],
+        ).pack(padx=14, pady=(14, 8))
+        month_bar = tk.Frame(popup, bg=c["panel"])
+        month_bar.pack(fill="x", padx=10)
+        grid = tk.Frame(popup, bg=c["panel"])
+        grid.pack(padx=10, pady=8)
+
+        def move_month(offset):
+            old = current[0]
+            month_index = old.year * 12 + old.month - 1 + offset
+            year, zero_month = divmod(month_index, 12)
+            current[0] = date(year, zero_month + 1, 1)
+            draw_month()
+
+        def choose_day(day_number):
+            chosen = date(current[0].year, current[0].month, day_number)
+            self.week_start = chosen - timedelta(days=chosen.weekday())
+            popup.destroy()
+            self.refresh()
+
+        previous = tk.Button(
+            month_bar, text="‹", width=3, command=lambda: move_month(-1),
+            bg=c["muted_panel"], fg=c["text"], relief="flat",
+        )
+        previous.pack(side="left")
+        month_label = tk.Label(
+            month_bar, text="", font=FONT_HEADER, bg=c["panel"], fg=c["header"],
+        )
+        month_label.pack(side="left", expand=True, padx=10)
+        next_button = tk.Button(
+            month_bar, text="›", width=3, command=lambda: move_month(1),
+            bg=c["muted_panel"], fg=c["text"], relief="flat",
+        )
+        next_button.pack(side="right")
+
+        def draw_month():
+            for child in grid.winfo_children():
+                child.destroy()
+            month_label.config(text=current[0].strftime("%B %Y"))
+            for column, weekday in enumerate(("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")):
+                tk.Label(
+                    grid, text=weekday, width=4, font=FONT_SMALL,
+                    bg=c["panel"], fg=c["muted"],
+                ).grid(row=0, column=column, padx=1, pady=2)
+            calendar_rows = pycalendar.Calendar(firstweekday=0).monthdayscalendar(
+                current[0].year, current[0].month
+            )
+            for row_index, week in enumerate(calendar_rows, start=1):
+                for column, day_number in enumerate(week):
+                    if not day_number:
+                        tk.Label(grid, text="", width=4, bg=c["panel"]).grid(
+                            row=row_index, column=column, padx=1, pady=1
+                        )
+                        continue
+                    chosen = date(current[0].year, current[0].month, day_number)
+                    is_past = chosen < date.today()
+                    is_today = chosen == date.today()
+                    button = tk.Button(
+                        grid, text=str(day_number), width=4,
+                        bg=(c["muted_panel"] if is_today else c["panel"]),
+                        fg=(c["muted"] if is_past else c["text"]),
+                        activebackground=c["accent"], activeforeground="#ffffff",
+                        relief="solid" if is_today else "flat", bd=1 if is_today else 0,
+                        command=lambda d=day_number: choose_day(d),
+                    )
+                    button.grid(row=row_index, column=column, padx=1, pady=1)
+
+        draw_month()
+        popup.grab_set()
+        popup.update_idletasks()
+        popup.geometry(f"+{self.winfo_rootx() + 180}+{self.winfo_rooty() + 80}")
 
     def refresh(self):
         self.colors = self.app.colors
@@ -175,7 +264,6 @@ class CalendarView(tk.Frame):
                     text=time_text, anchor="ne", fill=c["muted"], font=FONT_SMALL,
                 )
 
-        # Paint day backgrounds before the grid lines so the grid remains visible.
         for day_index, calendar_date in enumerate(visible_dates):
             x1 = self.TIME_WIDTH + day_index * self.DAY_WIDTH
             x2 = x1 + self.DAY_WIDTH
@@ -190,7 +278,6 @@ class CalendarView(tk.Frame):
                 fill=fill, outline="",
             )
 
-        # Draw lines above the backgrounds.
         for slot_index in range(25):
             y = grid_top + slot_index * self.SLOT_HEIGHT
             minute = db.OPEN_HOUR * 60 + slot_index * self.SLOT_MINUTES
@@ -205,8 +292,7 @@ class CalendarView(tk.Frame):
             x = self.TIME_WIDTH + index * self.DAY_WIDTH
             canvas.create_line(x, grid_top, x, height - 25, fill=c["grid"])
 
-        # Date-aware event data. Legacy rows with no exact date remain weekly.
-        all_rows = db.get_all_reservations()
+        all_rows = db.get_calendar_reservations()
         for day_index, calendar_date in enumerate(visible_dates):
             day_name = calendar_date.strftime("%A")
             day_rows = [
@@ -251,14 +337,17 @@ class CalendarView(tk.Frame):
             x1 = x_day + lane * lane_width + 3
             x2 = x_day + (lane + 1) * lane_width - 3
             palette = colors["events"]
-            event_color = palette[(int(row["facility_id"]) - 1) % len(palette)]
+            if row.get("status") == "PENDING":
+                event_color = colors["warning"]
+            else:
+                event_color = palette[(int(row["facility_id"]) - 1) % len(palette)]
             tags = ("reservation", f"reservation-id-{row['reservation_id']}")
             self.event_records[row["reservation_id"]] = row
             canvas.create_rectangle(
                 x1, y1, x2, y2, fill=event_color,
                 outline=colors["border"], width=1, tags=tags,
             )
-            label = f"{row['facility_name']} · {self._short_time(row['start_time'])}"
+            label = ("PENDING · " if row.get("status") == "PENDING" else "") + f"{row['facility_name']} · {self._short_time(row['start_time'])}"
             if lane_width >= 80 and y2 - y1 >= 38:
                 label += f"–{self._short_time(row['end_time'])}"
                 label += f"\n{row['teacher_name']}"
@@ -410,7 +499,9 @@ class CalendarView(tk.Frame):
             f"Date: {date_text}\n"
             f"Time: {time_text}\n"
             f"Reserved by: {who_text}\n"
-            f"Purpose: {purpose}\n\n{recurrence}"
+            f"Purpose: {purpose}\n"
+            f"Status: {'Pending administrator approval' if row.get('status') == 'PENDING' else 'Approved'}\n\n"
+            f"{recurrence}"
         )
 
         if not is_owner:

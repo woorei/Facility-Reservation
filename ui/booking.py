@@ -7,7 +7,6 @@ from .constants import FONT_TITLE, FONT_HEADER, FONT_NORMAL, FONT_PICKER, FONT_S
 
 
 class TimePicker(tk.Frame):
-    """Scrollable time wheel with unavailable options visibly disabled."""
     def __init__(self, parent, title, values, on_select, colors, height=11):
         self.colors = colors
         super().__init__(parent, bg=colors["panel"])
@@ -289,8 +288,9 @@ class BookingWindow(tk.Toplevel):
             for row in reservations:
                 mine = row["teacher_id"] == self.teacher["teacher_id"]
                 who = "You" if mine else row["teacher_name"]
+                status_label = " · PENDING" if row.get("status") == "PENDING" else ""
                 self.taken_list.insert(
-                    "end", f"  {db.to_12h(row['start_time'])} - {db.to_12h(row['end_time'])}  ·  {who}"
+                    "end", f"  {db.to_12h(row['start_time'])} - {db.to_12h(row['end_time'])}  ·  {who}{status_label}"
                 )
                 self.taken_list.itemconfig("end", fg=c["selection"] if mine else c["warning"])
                 if row["purpose"]:
@@ -327,9 +327,10 @@ class BookingWindow(tk.Toplevel):
             if self.reservation_date else self.day
         )
         messagebox.showinfo(
-            "Reserved",
-            f"{self.facility['name']} reserved for {display_date},\n"
-            f"{db.to_12h(self.start_value)} - {db.to_12h(self.end_value)}.",
+            "Request submitted",
+            f"Your request for {self.facility['name']} on {display_date},\n"
+            f"{db.to_12h(self.start_value)} - {db.to_12h(self.end_value)}, "
+            "has been sent to an administrator for approval.",
             parent=self,
         )
         self.purpose_entry.delete(0, "end")

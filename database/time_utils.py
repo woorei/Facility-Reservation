@@ -1,10 +1,9 @@
 from datetime import datetime, timedelta
 from .config import OPEN_HOUR, CLOSE_HOUR, SLOT_MINUTES
 
+# Time helpers ==================================================================
+
 def generate_time_points():
-    """Every selectable clock time from OPEN_HOUR to CLOSE_HOUR inclusive,
-    in 30-minute steps: ['06:00', '06:30', ... '18:00'].
-    Used to fill the start-time / end-time pickers."""
     points = []
     t = datetime(2000, 1, 1, OPEN_HOUR, 0)
     end_of_day = datetime(2000, 1, 1, CLOSE_HOUR, 0)
@@ -14,12 +13,10 @@ def generate_time_points():
     return points
 
 def generate_time_slots():
-    """Every 30-minute block as (start, end) pairs, e.g. ('06:00','06:30')."""
     points = generate_time_points()
     return list(zip(points[:-1], points[1:]))
 
 def to_12h(hhmm):
-    """'13:30' -> '1:30 PM' for friendlier display."""
     dt = datetime.strptime(hhmm, "%H:%M")
     return dt.strftime("%I:%M %p").lstrip("0")
 

@@ -11,11 +11,16 @@ def get_connection():
 
 
 def init_db():
-    """Create tables and safely add the date field to existing databases."""
     with get_connection() as conn:
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS teachers (
                 teacher_id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                password TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS administrators (
+                admin_id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
                 password TEXT NOT NULL
             );
@@ -46,21 +51,26 @@ def init_db():
             for row in conn.execute("PRAGMA table_info(reservations)").fetchall()
         }
         if "reservation_date" not in columns:
-            conn.execute(
-                "ALTER TABLE reservations ADD COLUMN reservation_date TEXT"
-            )
+            conn.execute("ALTER TABLE reservations ADD COLUMN reservation_date TEXT")
+
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_reservations_date_facility "
             "ON reservations (reservation_date, facility_id, status)"
         )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_reservations_status "
+            "ON reservations (status, created_at)"
+        )
 
 
 def seed_data():
-    """Insert the starter teachers and facilities without duplicating rows."""
     teachers = [
         ("T-0001", "Jhervin Cabato", "teacher123"),
         ("T-0002", "Maria Santos", "teacher123"),
         ("T-0003", "Ramon Dela Cruz", "teacher123"),
+    ]
+    administrators = [
+        ("A-0001", "System Administrator", "admin123"),
     ]
     facilities = ["Gym", "AVR", "Covered Court", "Function Hall"]
 
@@ -68,6 +78,10 @@ def seed_data():
         conn.executemany(
             "INSERT OR IGNORE INTO teachers (teacher_id, name, password) VALUES (?, ?, ?)",
             teachers,
+        )
+        conn.executemany(
+            "INSERT OR IGNORE INTO administrators (admin_id, name, password) VALUES (?, ?, ?)",
+            administrators,
         )
         conn.executemany(
             "INSERT OR IGNORE INTO facilities (name) VALUES (?)",

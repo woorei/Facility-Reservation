@@ -74,13 +74,14 @@ class TeacherDashboard(tk.Frame):
 
         tree_frame = tk.Frame(self.myres_tab, bg=c["bg"])
         tree_frame.pack(fill="both", expand=True, padx=8, pady=4)
-        columns = ("date", "facility", "time", "purpose")
+        columns = ("date", "facility", "time", "status", "purpose")
         self.my_tree = ttk.Treeview(tree_frame, columns=columns, show="headings", height=13)
         for column, label, width, anchor in [
-            ("date", "Date", 175, "w"),
-            ("facility", "Facility", 150, "w"),
-            ("time", "Time Frame", 190, "center"),
-            ("purpose", "Purpose", 380, "w"),
+            ("date", "Date", 150, "w"),
+            ("facility", "Facility", 140, "w"),
+            ("time", "Time Frame", 175, "center"),
+            ("status", "Status", 150, "center"),
+            ("purpose", "Purpose", 300, "w"),
         ]:
             self.my_tree.heading(column, text=label)
             self.my_tree.column(column, width=width, anchor=anchor)
@@ -97,6 +98,7 @@ class TeacherDashboard(tk.Frame):
                     self._date_label(row),
                     row["facility_name"],
                     f"{db.to_12h(row['start_time'])} – {db.to_12h(row['end_time'])}",
+                    {"ACTIVE": "Approved", "PENDING": "Pending approval", "REJECTED": "Rejected"}.get(row.get("status"), row.get("status", "")),
                     row["purpose"] or "–",
                 ),
             )
@@ -121,6 +123,11 @@ class TeacherDashboard(tk.Frame):
             messagebox.showinfo("Select a reservation", "Please select a reservation row first.", parent=self)
             return
         row = self._my_rows[selected[0]]
+        if row.get("status") not in ("ACTIVE", "PENDING"):
+            messagebox.showinfo(
+                "Cannot cancel", "Only approved reservations and pending requests can be cancelled.", parent=self
+            )
+            return
         if not messagebox.askyesno(
             "Cancel reservation",
             f"Cancel {row['facility_name']} on {self._date_label(row)}, "
@@ -176,6 +183,7 @@ class TeacherDashboard(tk.Frame):
                 values=(
                     self._date_label(row), row["teacher_name"], row["facility_name"],
                     f"{db.to_12h(row['start_time'])} – {db.to_12h(row['end_time'])}",
+                    {"ACTIVE": "Approved", "PENDING": "Pending approval", "REJECTED": "Rejected"}.get(row.get("status"), row.get("status", "")),
                     row["purpose"] or "–",
                 ),
             )
