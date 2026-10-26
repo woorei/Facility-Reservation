@@ -2,9 +2,10 @@ from .core import get_connection
 
 
 def authenticate_teacher(teacher_id, password):
+    """Authenticate active staff accounts only."""
     with get_connection() as conn:
         row = conn.execute(
-            "SELECT * FROM teachers WHERE teacher_id = ? AND password = ?",
+            "SELECT * FROM teachers WHERE teacher_id = ? AND password = ? AND is_active = 1",
             (teacher_id, password),
         ).fetchone()
     return dict(row) if row else None

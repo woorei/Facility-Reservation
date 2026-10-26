@@ -11,12 +11,14 @@ def get_connection():
 
 
 def init_db():
+    """Create the database and safely add the admin-management columns."""
     with get_connection() as conn:
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS teachers (
                 teacher_id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
-                password TEXT NOT NULL
+                password TEXT NOT NULL,
+                is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1))
             );
 
             CREATE TABLE IF NOT EXISTS administrators (
@@ -41,17 +43,47 @@ def init_db():
                 status TEXT NOT NULL DEFAULT 'ACTIVE',
                 created_at TEXT NOT NULL,
                 reservation_date TEXT,
+                cancellation_reason TEXT,
+                cancelled_by_admin TEXT,
+                cancelled_at TEXT,
                 FOREIGN KEY (facility_id) REFERENCES facilities (facility_id),
                 FOREIGN KEY (teacher_id) REFERENCES teachers (teacher_id)
             );
+
+            CREATE TABLE IF NOT EXISTS admin_audit_log (
+                log_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                admin_id TEXT NOT NULL,
+                action TEXT NOT NULL,
+                target_type TEXT NOT NULL,
+                target_id TEXT NOT NULL,
+                reason TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (admin_id) REFERENCES administrators (admin_id)
+            );
         """)
 
-        columns = {
+        # Migrate older databases without deleting existing rows.
+        teacher_columns = {
+            row["name"]
+            for row in conn.execute("PRAGMA table_info(teachers)").fetchall()
+        }
+        if "is_active" not in teacher_columns:
+            conn.execute(
+                "ALTER TABLE teachers ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1"
+            )
+
+        reservation_columns = {
             row["name"]
             for row in conn.execute("PRAGMA table_info(reservations)").fetchall()
         }
-        if "reservation_date" not in columns:
+        if "reservation_date" not in reservation_columns:
             conn.execute("ALTER TABLE reservations ADD COLUMN reservation_date TEXT")
+        if "cancellation_reason" not in reservation_columns:
+            conn.execute("ALTER TABLE reservations ADD COLUMN cancellation_reason TEXT")
+        if "cancelled_by_admin" not in reservation_columns:
+            conn.execute("ALTER TABLE reservations ADD COLUMN cancelled_by_admin TEXT")
+        if "cancelled_at" not in reservation_columns:
+            conn.execute("ALTER TABLE reservations ADD COLUMN cancelled_at TEXT")
 
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_reservations_date_facility "
@@ -69,9 +101,7 @@ def seed_data():
         ("T-0002", "Maria Santos", "teacher123"),
         ("T-0003", "Ramon Dela Cruz", "teacher123"),
     ]
-    administrators = [
-        ("A-0001", "System Administrator", "admin123"),
-    ]
+    administrators = [("A-0001", "System Administrator", "admin123")]
     facilities = ["Gym", "AVR", "Covered Court", "Function Hall"]
 
     with get_connection() as conn:

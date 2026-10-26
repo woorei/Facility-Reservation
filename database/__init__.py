@@ -11,5 +11,10 @@ from .schedule import (
     taken_time_points, is_range_free, conflicting_reservation,
 )
 from .booking import (
-    create_reservation, cancel_reservation, approve_reservation, reject_reservation,
+    create_reservation, approve_reservation, reject_reservation,
+    cancel_reservation,
+)
+from .admin import (
+    get_admin_teachers, get_admin_reservations, set_teacher_active,
+    force_cancel_reservation, add_teacher, get_admin_facilities, add_facility,
 )

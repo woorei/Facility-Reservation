@@ -15,7 +15,6 @@ def create_reservation(
     purpose="",
     reservation_date=None,
 ):
-   
     duration = minutes_between(start_time, end_time)
     if duration <= 0:
         raise ValueError("The end time must be later than the start time.")
@@ -51,6 +50,15 @@ def create_reservation(
         )
 
     with get_connection() as conn:
+        # Check again at the database layer. A staff member might still have an
+        # open session when an administrator deactivates the account.
+        teacher = conn.execute(
+            "SELECT is_active FROM teachers WHERE teacher_id = ?",
+            (teacher_id,),
+        ).fetchone()
+        if not teacher or not teacher["is_active"]:
+            raise ValueError("This staff account is inactive or no longer exists.")
+
         conn.execute(
             """
             INSERT INTO reservations
@@ -138,7 +146,6 @@ def cancel_reservation(reservation_id, teacher_id=None):
             raise ValueError("Only active reservations and pending requests can be cancelled.")
         if teacher_id is not None and row["teacher_id"] != teacher_id:
             raise ValueError("You can only cancel reservations you made yourself.")
-
         result = conn.execute(
             "UPDATE reservations SET status = 'CANCELLED' WHERE reservation_id = ? AND status IN ('ACTIVE', 'PENDING')",
             (reservation_id,),
